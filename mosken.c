@@ -99,7 +99,7 @@ check_file_offset_bound(FILE *stream, long offset)
 
     if(offset > file_sz)
     {
-        fprintf(stderr, "Offset of the page is invalid.");
+        fprintf(stderr, "Offset of the page is invalid.\n");
         return -1;
     }
 
@@ -118,9 +118,7 @@ read_page(FILE *stream, PageId pg_id, char *pg_data)
     if(ferror(stream))
         perror("Error seeking to offset in page file");
 
-    if(fread(pg_data, BLKSZ, 1, stream) != BLKSZ)
-        fprintf(stderr,
-                "Error reading page from file, did not read the full page.");
+    fread(pg_data, BLKSZ, 1, stream);
 
     if(ferror(stream))
         perror("Error reading page from file");
@@ -138,9 +136,7 @@ write_page(FILE *stream, PageId pg_id, char *pg_data)
     if(ferror(stream))
         perror("Error seeking to the offset in the page file");
 
-    if(fwrite(pg_data, BLKSZ, 1, stream) != BLKSZ)
-        fprintf(stderr,
-                "Error writing page to file, did not write the full page.");
+    fwrite(pg_data, BLKSZ, 1, stream);
 
     if(ferror(stream))
         perror("Error writing page to file");
@@ -159,17 +155,22 @@ main(void)
     add_page_item(page, (Item)&payment_obj, sizeof(PaymentData),
                   offset_number);
 
-    FILE *fp = fopen("./mosken.bin", "rb+");
-    if(ferror(fp))
-        perror("Error opening file");
+    FILE *fp = fopen("mosken.bin", "r+");
+    if(fp == NULL) {
+        fprintf(stderr, "Error opening file\n");
+        exit(1);
+    }
 
-    /* write_page(fp, 0L, (char *)page); */
 
-    /* Page page_2 = malloc(BLKSZ); */
-    /* read_page(fp, 0L, page_2); */
+    write_page(fp, 0L, (char *)page);
+
+    Page page_2 = malloc(BLKSZ);
+    read_page(fp, 0L, page_2);
 
     print_payment(payment(page, page_get_item_id(page, 1)));
 
-    /* print_payment(payment(page_2, page_get_item_id(page_2, 1))); */
+    print_payment(payment(page_2, page_get_item_id(page_2, 1)));
+    free(page);
+    free(page_2);
     return EXIT_SUCCESS;
 }

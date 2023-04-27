@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Werror -std=c18 -pedantic
+CFLAGS=-Wall -Wextra -Werror -std=c18 -pedantic -g
 
 
 mosken: mosken.c
