@@ -44,7 +44,7 @@ add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
     int upper, lower;
 
     upper = (int)p->pgh_upper - (int)size;
-    lower = p->pgh_lower + sizeof(PageItemMeta);
+    lower = (int)p->pgh_lower + sizeof(PageItemMeta);
 
     item_id_set(item_id, upper, size);
 
@@ -57,8 +57,8 @@ add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
 void
 print_payment(Payment p)
 {
-    printf("Payment { payment_id [%d] payment_name [%s] payment_time [%zu] "
-           "total_cents [%zu] }\n",
+    printf("Payment { payment_id [%d] payment_name [%s] payment_time [%u] "
+           "total_cents [%u] }\n",
            p->payment_id, p->payment_name, p->payment_time, p->total_cents);
 }
 
@@ -155,12 +155,21 @@ main(void)
     add_page_item(page, (Item)&payment_obj, sizeof(PaymentData),
                   offset_number);
 
-    FILE *fp = fopen("mosken.bin", "r+");
-    if(fp == NULL) {
+    char *filename = "mosken.db";
+
+    struct stat buffer;
+    if(stat(filename, &buffer) != 0)
+    {
+        FILE *fp = fopen(filename, "w");
+        fclose(fp);
+    }
+
+    FILE *fp = fopen(filename, "r+");
+    if(fp == NULL)
+    {
         fprintf(stderr, "Error opening file\n");
         exit(1);
     }
-
 
     write_page(fp, 0L, (char *)page);
 
