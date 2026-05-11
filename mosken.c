@@ -1,6 +1,7 @@
 #include "mosken.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -35,10 +36,10 @@ add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
 {
     PgHeader p = (PgHeader)page;
     PgItemId item_id = page_get_item_id(page, offset_number);
-    int upper, lower;
+    uint32_t upper, lower;
 
-    upper = (int)p->pgh_upper - (int)size;
-    lower = (int)p->pgh_lower + sizeof(PageItemMeta);
+    upper = p->pgh_upper - size;
+    lower = p->pgh_lower + sizeof(PageItemMeta);
 
     item_id_set(item_id, upper, size);
 
