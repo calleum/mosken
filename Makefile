@@ -11,4 +11,9 @@ run: build
 
 .PHONY: clean
 clean: 
-	rm -f mosken
+	rm -f mosken test
+
+test: test.c test.h
+	$(CC) $(CFLAGS) -o test test.c mosken.c
+	./test
+
