@@ -28,7 +28,7 @@ main(void)
                                 .payment_name = "Expensive Tuna",
                                 .payment_time = 1682331745 };
     Page page = malloc(BLKSZ);
-    page_init(page, BLKSZ);
+    page_init(page);
     OffsetNum offset_number = 1;
     add_page_item(page, (Item)&payment_obj, sizeof(PaymentData),
                   offset_number);

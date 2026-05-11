@@ -6,8 +6,9 @@
 #include <sys/stat.h>
 
 void
-page_init(Page page, Size size)
+page_init(Page page)
 {
+    Size size = BLKSZ;
     PgHeader p = (PgHeader)page;
     assert(size == BLKSZ);
 

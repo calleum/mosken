@@ -67,7 +67,7 @@ typedef uint32_t OffsetNum;
 
 void add_page_item(Page page, Item item, Size size, OffsetNum offset_number);
 void write_page(FILE *stream, PageId pg_id, char *pg_data);
-void page_init(Page page, Size size);
+void page_init(Page page);
 Item page_item(Page page, PgItemId pgi_id);
 void read_page(FILE *stream, PageId pg_id, char *pg_data);
 PgItemId page_get_item_id(Page page, OffsetNum offset_number);
