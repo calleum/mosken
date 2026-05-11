@@ -2,7 +2,7 @@ CFLAGS=-Wall -Wextra -Werror -std=c18 -pedantic -g3 -fsanitize=address,undefined
 
 
 mosken: mosken.c mosken.h
-	$(CC) $(CFLAGS) -o mosken mosken.c
+	$(CC) $(CFLAGS) -o mosken mosken.c main.c
 
 build: mosken
 

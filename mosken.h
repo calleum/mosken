@@ -1,11 +1,12 @@
 #ifndef MOSKEN_H
 #define MOSKEN_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #define BLKSZ 4096 // size of a db block in bytes
 
-#define size_of_page_header (offsetof (PgHeaderData, pgh_im))
+#define size_of_page_header (offsetof(PgHeaderData, pgh_im))
 #define item_id_set(item_id, off, len)                                        \
     ((item_id)->pgi_offset = (off), (item_id)->pgi_length = (len))
 #define DIRECTORY_PAGE 1
@@ -25,7 +26,7 @@ typedef uint32_t Offset;
 
 typedef struct
 {
-    Offset pgi_offset; /* offset into the page to the start of the item */
+    Offset pgi_offset;   /* offset into the page to the start of the item */
     uint32_t pgi_length; /* length of the item in the page */
 } PageItemMeta;
 
@@ -33,9 +34,9 @@ typedef PageItemMeta *PgItemId;
 
 typedef struct
 {
-    uint32_t pgh_lower; /* offset to the start of free space in the page */
-    uint32_t pgh_upper; /* offset to the end of free space in the page */
-    PageItemMeta pgh_im[];    /* item metadata array */
+    uint32_t pgh_lower;    /* offset to the start of free space in the page */
+    uint32_t pgh_upper;    /* offset to the end of free space in the page */
+    PageItemMeta pgh_im[]; /* item metadata array */
 } PgHeaderData;
 
 typedef PgHeaderData *PgHeader;
@@ -63,5 +64,12 @@ typedef uint32_t Size;
 
 typedef char *Item;
 typedef uint32_t OffsetNum;
+
+void add_page_item(Page page, Item item, Size size, OffsetNum offset_number);
+void write_page(FILE *stream, PageId pg_id, char *pg_data);
+void page_init(Page page, Size size);
+Item page_item(Page page, PgItemId pgi_id);
+void read_page(FILE *stream, PageId pg_id, char *pg_data);
+PgItemId page_get_item_id(Page page, OffsetNum offset_number);
 
 #endif // !MOSKEN_H
