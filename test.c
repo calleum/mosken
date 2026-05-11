@@ -23,7 +23,7 @@ TEST(page_init_zeroed)
 
     PgHeader p = (PgHeader)page;
 
-    for(uint32_t i = p->pgh_lower; i < (p->pgh_upper - p->pgh_lower); i++)
+    for(uint32_t i = p->pgh_lower; i < (p->pgh_upper - p->pgh_lower); i += 1)
     {
         ASSERT(page[p->pgh_lower + i] == 0);
     }

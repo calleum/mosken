@@ -12,16 +12,6 @@
 #define DIRECTORY_PAGE 1
 #define DATA_PAGE 3
 
-typedef struct
-{
-    int payment_id;
-    char payment_name[24];
-    uint32_t payment_time;
-    uint32_t total_cents;
-} PaymentData;
-
-typedef PaymentData *Payment;
-
 typedef uint32_t Offset;
 
 typedef struct

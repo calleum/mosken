@@ -6,6 +6,16 @@
 #include <string.h>
 #include <sys/stat.h>
 
+typedef struct
+{
+    int payment_id;
+    char payment_name[24];
+    uint32_t payment_time;
+    uint32_t total_cents;
+} PaymentData;
+
+typedef PaymentData *Payment;
+
 Payment
 payment(Page page, PgItemId pgi_id)
 {
