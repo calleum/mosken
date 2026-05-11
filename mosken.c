@@ -70,12 +70,12 @@ dir_page_init(Page page, Size size)
 
     memset(pd, 0, size);
 
-    PageDirEntry pde = NULL;
+    PageDirEntryData pde;
 
-    pde->fpg_offset = size;
-    pde->fpg_id = 0;
-    memcpy((char *)page + sizeof(pd->pt), (char *)pde,
-           sizeof(PageDirEntryData));
+    pde.fpg_offset = size;
+    pde.fpg_id = 0;
+
+    pd->pds[0] = pde;
 }
 
 int
