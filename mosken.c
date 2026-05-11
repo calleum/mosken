@@ -50,8 +50,8 @@ add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
 
     memcpy((char *)page + upper, item, size);
 
-    p->pgh_upper = (unsigned short)upper;
-    p->pgh_lower = (unsigned short)lower;
+    p->pgh_upper = upper;
+    p->pgh_lower = lower;
 }
 
 void
