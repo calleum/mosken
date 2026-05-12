@@ -1,4 +1,5 @@
 #include "mosken.h"
+#include "heapfile.h"
 #include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -44,29 +45,23 @@ main(void)
                   offset_number);
 
     char *filename = "mosken.db";
-
-    struct stat buffer;
-    if(stat(filename, &buffer) != 0)
+    HeapFile *hf = hf_open(filename);
+    if(hf == NULL)
     {
-        FILE *fp = fopen(filename, "w");
-        fclose(fp);
-    }
-
-    FILE *fp = fopen(filename, "r+");
-    if(fp == NULL)
-    {
-        fprintf(stderr, "Error opening file\n");
+        fprintf(stderr, "Error opening heap file\n");
         exit(1);
     }
 
-    write_page(fp, 0L, (char *)page);
+    hf_write_page(hf, 0L, (char *)page);
 
     Page page_2 = malloc(BLKSZ);
-    read_page(fp, 0L, page_2);
+    hf_read_page(hf, 0L, page_2);
 
     print_payment(payment(page, page_get_item_id(page, 1)));
 
     print_payment(payment(page_2, page_get_item_id(page_2, 1)));
+    
+    hf_close(hf);
     free(page);
     free(page_2);
     return EXIT_SUCCESS;

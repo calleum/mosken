@@ -61,70 +61,8 @@ void dir_page_init(Page page, Size size)
     memset(pd, 0, size);
 
     PageDirEntryData pde;
-
     pde.fpg_offset = size;
     pde.fpg_id = 0;
 
     pd->pds[0] = pde;
-}
-
-int check_file_offset_bound(FILE *stream, long offset)
-{
-    long file_sz;
-
-    fseek(stream, 0L, SEEK_END);
-    if(ferror(stream))
-    {
-        perror("Error seeking to end of the page file");
-        return -1;
-    }
-
-    file_sz = ftell(stream);
-    if(ferror(stream))
-    {
-        perror("Error getting the position in the page file");
-        return -1;
-    }
-
-    if(offset > file_sz)
-    {
-        fprintf(stderr, "Offset of the page is invalid.\n");
-        return -1;
-    }
-
-    return 1;
-}
-
-void read_page(FILE *stream, PageId pg_id, char *pg_data)
-{
-    long offset = pg_id * BLKSZ;
-
-    if(check_file_offset_bound(stream, offset) == -1)
-        return;
-
-    fseek(stream, offset, SEEK_SET);
-    if(ferror(stream))
-        perror("Error seeking to offset in page file");
-
-    fread(pg_data, BLKSZ, 1, stream);
-
-    if(ferror(stream))
-        perror("Error reading page from file");
-}
-
-void write_page(FILE *stream, PageId pg_id, char *pg_data)
-{
-    long offset = pg_id * BLKSZ;
-
-    if(check_file_offset_bound(stream, offset) == -1)
-        return;
-
-    fseek(stream, offset, SEEK_SET);
-    if(ferror(stream))
-        perror("Error seeking to the offset in the page file");
-
-    fwrite(pg_data, BLKSZ, 1, stream);
-
-    if(ferror(stream))
-        perror("Error writing page to file");
 }
