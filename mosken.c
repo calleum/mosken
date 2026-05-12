@@ -6,8 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-void
-page_init(Page page)
+void page_init(Page page)
 {
     Size size = BLKSZ;
     PgHeader p = (PgHeader)page;
@@ -19,24 +18,29 @@ page_init(Page page)
     p->pgh_upper = size;
 }
 
-Item
-page_item(Page page, PgItemId pgi_id)
+Item page_item(Page page, PgItemId pgi_id)
 {
     return (Item)(((char *)page) + pgi_id->pgi_offset);
 }
 
-PgItemId
-page_get_item_id(Page page, OffsetNum offset_number)
+PgItemId page_get_item_id(Page page, OffsetNum offset_number)
 {
     return &((PgHeader)page)->pgh_im[offset_number - 1];
 }
 
-void
-add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
+uint32_t page_free_space(Page page)
+{
+    PgHeader p = (PgHeader)page;
+    return p->pgh_upper - p->pgh_lower;
+}
+
+void add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
 {
     PgHeader p = (PgHeader)page;
     PgItemId item_id = page_get_item_id(page, offset_number);
     uint32_t upper, lower;
+
+    assert(page_free_space(page) > (size + sizeof(PageItemMeta)));
 
     upper = p->pgh_upper - size;
     lower = p->pgh_lower + sizeof(PageItemMeta);
@@ -48,8 +52,8 @@ add_page_item(Page page, Item item, Size size, OffsetNum offset_number)
     p->pgh_upper = upper;
     p->pgh_lower = lower;
 }
-void
-dir_page_init(Page page, Size size)
+
+void dir_page_init(Page page, Size size)
 {
     PageDirectory pd = (PageDirectory)page;
     assert(size == BLKSZ);
@@ -64,8 +68,7 @@ dir_page_init(Page page, Size size)
     pd->pds[0] = pde;
 }
 
-int
-check_file_offset_bound(FILE *stream, long offset)
+int check_file_offset_bound(FILE *stream, long offset)
 {
     long file_sz;
 
@@ -92,8 +95,7 @@ check_file_offset_bound(FILE *stream, long offset)
     return 1;
 }
 
-void
-read_page(FILE *stream, PageId pg_id, char *pg_data)
+void read_page(FILE *stream, PageId pg_id, char *pg_data)
 {
     long offset = pg_id * BLKSZ;
 
@@ -110,8 +112,7 @@ read_page(FILE *stream, PageId pg_id, char *pg_data)
         perror("Error reading page from file");
 }
 
-void
-write_page(FILE *stream, PageId pg_id, char *pg_data)
+void write_page(FILE *stream, PageId pg_id, char *pg_data)
 {
     long offset = pg_id * BLKSZ;
 
