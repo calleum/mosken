@@ -1,0 +1,11 @@
+[package]
+name = "problem-05-table-read"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mosken = { path = "../../.." }
+thiserror = "2"
+tempfile = "3"
+
+[workspace]

@@ -12,3 +12,6 @@ test
 # Added by cargo
 
 /target
+
+# Rust build dirs anywhere in the tree
+**/target

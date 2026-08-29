@@ -1,0 +1,10 @@
+[package]
+name = "problem-03-pagedir-update-free"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mosken = { path = "../../.." }
+thiserror = "2"
+
+[workspace]
