@@ -1,7 +1,8 @@
-//! Fuzz harness for slotted-page delete + compaction (rung A1).
+//! Fuzz harness for slotted-page delete + compaction.
 //!
-//! Agent-written scaffolding per the crucible rule — the fixes this surfaces
-//! belong in `src/page.rs`, written by the human, not here.
+//! Model-checked fuzzing: a mirror model holds what the page should contain,
+//! and every invariant is re-verified after each operation. The checks this
+//! surfaces are fixed in `src/page.rs`, not here.
 //!
 //! Deterministic LCG (no rand dependency). Maintains a mirror model of the
 //! page and verifies every invariant after every operation:
