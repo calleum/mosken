@@ -1,5 +1,5 @@
-#include "mosken.h"
 #include "heapfile.h"
+#include "mosken.h"
 #include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -17,22 +17,19 @@ typedef struct
 
 typedef PaymentData *Payment;
 
-Payment
-payment(Page page, PgItemId pgi_id)
+Payment payment(Page page, PgItemId pgi_id)
 {
     return (Payment)page_item(page, pgi_id);
 }
 
-void
-print_payment(Payment p)
+void print_payment(Payment p)
 {
     printf("Payment { payment_id [%d] payment_name [%s] payment_time [%u] "
            "total_cents [%u] }\n",
            p->payment_id, p->payment_name, p->payment_time, p->total_cents);
 }
 
-int
-main(void)
+int main(void)
 {
     PaymentData payment_obj = { .payment_id = 1,
                                 .total_cents = 2000,
@@ -41,7 +38,7 @@ main(void)
     Page page = malloc(BLKSZ);
     page_init(page);
     OffsetNum offset_number = 1;
-    add_page_item(page, (Item)&payment_obj, sizeof(PaymentData),
+    page_add_item(page, (Item)&payment_obj, sizeof(PaymentData),
                   offset_number);
 
     char *filename = "mosken.db";
@@ -60,7 +57,7 @@ main(void)
     print_payment(payment(page, page_get_item_id(page, 1)));
 
     print_payment(payment(page_2, page_get_item_id(page_2, 1)));
-    
+
     hf_close(hf);
     free(page);
     free(page_2);

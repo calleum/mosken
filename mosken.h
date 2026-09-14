@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #define BLKSZ 4096 // size of a db block in bytes
 
 #define size_of_page_header (offsetof(PgHeaderData, pgh_im))
@@ -55,10 +54,14 @@ typedef uint32_t Size;
 typedef char *Item;
 typedef uint32_t OffsetNum;
 
-void add_page_item(Page page, Item item, Size size, OffsetNum offset_number);
+void page_add_item(Page page, Item item, Size size, OffsetNum offset_number);
 void page_init(Page page);
 uint32_t page_free_space(Page page);
 Item page_item(Page page, PgItemId pgi_id);
 PgItemId page_get_item_id(Page page, OffsetNum offset_number);
+
+void page_delete_item(Page page, OffsetNum offset_number);
+void page_compact(Page page);
+int page_item_is_live(Page page, OffsetNum offset_number);
 
 #endif // !MOSKEN_H
