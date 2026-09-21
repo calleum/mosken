@@ -49,11 +49,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Implement in mosken.c, declare in mosken.h: */
-void page_delete_item(Page page, OffsetNum offset_number);
-void page_compact(Page page);
-int page_item_is_live(Page page, OffsetNum offset_number);
-
 #define MAX_SLOTS 640 /* (BLKSZ - 8) / 8 = 636 max; headroom */
 #define MAX_ITEM 4096
 
@@ -63,8 +58,7 @@ static int g_trace;
 
 /* Trace goes to stderr: unbuffered, so it is already out when assert(0)
  * aborts. stdout would be buffer-flushed away by the abort. */
-static void
-trace_op(const char *fmt, ...)
+static void trace_op(const char *fmt, ...)
 {
     va_list ap;
     if(!g_trace)
@@ -243,8 +237,8 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
                 m.nslots++;
                 m.upper -= len;
             }
-            trace_op("ADD %s slot %u len=%u (free before %u)", kind, onum,
-                     len, free_now);
+            trace_op("ADD %s slot %u len=%u (free before %u)", kind, onum, len,
+                     free_now);
             add_page_item(page, (Item)buf, (Size)len, onum);
         }
         else if(roll == 2)
