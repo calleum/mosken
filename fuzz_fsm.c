@@ -1,51 +1,61 @@
 /*
  * Fuzz harness for the single-page free space map (rung A2).
  *
- * Model-checked fuzzing: a mirror model (exact byte-precise free space per
- * heap page) is verified against the FSM after every operation. The model
- * pre-checks every predicate the implementation may assume, so an
- * assert-abort is a contract bug, not coverage.
+ * HOW THE CHECKER WORKS
+ *   It keeps a mirror model with the exact free bytes on each heap page and
+ *   checks the FSM against that model after every operation. The model
+ *   pre-checks every predicate the implementation may assume. An assert
+ *   failure is therefore a contract bug, not a coverage event.
  *
- * CONTRACT — implement these four in fsm.c (fsm.h ships the layout
- * constants and prototypes; do not change them):
+ * FSM CONTRACT
+ *   Implement these four functions in fsm.c. fsm.h provides the layout
+ *   constants and prototypes; do not change them.
  *
- *   void fsm_init(Page page);
- *       Initialize the FSM page: every node byte 0, next-slot pointer 0.
+ *   fsm_init(Page page)
+ *     Set every node byte and the next-slot pointer to 0.
  *
- *   void fsm_set_avail(Page page, uint32_t page_no, uint8_t cat);
- *       Store `cat` in the leaf slot for heap page `page_no`, then bubble
- *       up: recompute each ancestor as the max of its two children, stopping
- *       early when a parent's value does not change.
+ *   fsm_set_avail(Page page, uint32_t page_no, uint8_t cat)
+ *     Store `cat` in the leaf for heap page `page_no`. Then walk toward the
+ *     root, setting each ancestor to the maximum of its two children. Stop
+ *     when an ancestor's value does not change.
  *
- *   int fsm_search_avail(Page page, uint8_t min_cat, uint32_t *page_no_out);
- *       Find a heap page whose stored category is >= min_cat; store its
- *       page number in *page_no_out, return 1. If the root is < min_cat no
- *       such page exists: return 0. Any traversal order is accepted — the
- *       checker only requires the returned page to satisfy the predicate
- *       and the return value to agree with the model's max.
- *       Caller guarantees min_cat >= 1. Leaf slots never written hold 0 and
- *       must never be returned (0 means "full" for every min_cat >= 1).
+ *   fsm_search_avail(Page page, uint8_t min_cat, uint32_t *page_no_out)
+ *     Find a heap page whose category is at least `min_cat`. On success,
+ *     store its page number in `*page_no_out` and return 1. If the root is
+ *     below `min_cat`, return 0. Any traversal order is valid: the checker
+ *     only requires a matching page and a result consistent with the
+ *     model's maximum category.
  *
- *   uint8_t fsm_root_value(Page page);
- *       The root node's stored category (max over all heap pages).
+ *     The caller guarantees `min_cat >= 1`. Unwritten leaf slots contain 0
+ *     and must not be returned; 0 means "full" for every valid request.
  *
- * PAGE LAYOUT (fixed by fsm.h, mirrors PostgreSQL's FSM design):
- *   - Bytes 4..7: next-slot pointer (u32, little-endian), fp_next_slot.
- *     fsm_init sets it to 0; the implementation may rotate it freely.
- *   - Node bytes start at FSM_NODES_START = 8, one byte per node.
- *   - The binary tree is stored in level order: slot 0 is the root,
- *     children of slot i are 2i+1 and 2i+2, parent of slot i is (i-1)/2.
- *     The tree is not perfect: leaves sit at slots LEAF_START..FSM_NODES-1,
- *     one per heap page; rightmost leaf slots may be unused (hold 0).
- *   - 4088 node bytes hold a complete tree over NSLOTS = 2044 leaves:
- *     FSM_NODES = 2*NSLOTS - 1 = 4087 nodes, slots 0..4086.
+ *   fsm_root_value(Page page)
+ *     Return the root node's category (the maximum across all heap pages).
  *
- * CATEGORY ARITHMETIC (PG's fsm_space_avail_to_cat, exact):
- *   cat = min(255, free / 16)            // 16 = BLKSZ/256 for BLKSZ 4096
- *   a page satisfies a request of `need` bytes iff cat >= ceil(need/16)
- *   (ceiling on SEARCH; floor on STORE — the two are not symmetric)
+ * PAGE LAYOUT
+ *   Fixed by fsm.h; mirrors PostgreSQL's FSM design.
  *
- * Set FUZZ_TRACE=1 for one line per op plus FSM state (stderr, unbuffered).
+ *   - Bytes 4..7 hold the little-endian u32 next-slot pointer,
+ *     `fp_next_slot`. fsm_init sets it to 0; the implementation may rotate
+ *     it freely.
+ *   - Node bytes start at FSM_NODES_START = 8, with one byte per node.
+ *   - Nodes use level order: slot 0 is the root; slot i's children are
+ *     2i+1 and 2i+2, and its parent is (i-1)/2.
+ *   - Leaves occupy LEAF_START..FSM_NODES-1, one per heap page. The tree is
+ *     not perfect, so unused rightmost leaves may remain 0.
+ *   - The 4088 available bytes fit a complete tree with NSLOTS = 2044
+ *     leaves: FSM_NODES = 2*NSLOTS - 1 = 4087 nodes, in slots 0..4086.
+ *
+ * CATEGORY ARITHMETIC
+ *   This matches PostgreSQL's fsm_space_avail_to_cat exactly:
+ *
+ *     cat = min(255, free / 16)  // 16 = BLKSZ/256 for BLKSZ 4096
+ *     satisfies request `need` iff cat >= ceil(need / 16)
+ *
+ *   Store rounds down; search rounds up. These operations are not symmetric.
+ *
+ * Set FUZZ_TRACE=1 for one line per operation plus FSM state
+ * (stderr, unbuffered).
  */
 
 #include "mosken.h"
