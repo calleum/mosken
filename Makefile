@@ -17,10 +17,14 @@ fuzz: fuzz_page.c mosken.c mosken.h
 	$(CC) $(CFLAGS) -o fuzz fuzz_page.c mosken.c
 	./fuzz
 
-fuzz-fsm: fuzz_fsm.c fsm.h mosken.c mosken.h heapfile.c heapfile.h
-	$(CC) $(CFLAGS) -o fuzz-fsm fuzz_fsm.c mosken.c heapfile.c
+fsm-test: fsm_test.c fsm.h mosken.c mosken.h heapfile.c heapfile.h fsm.c
+	$(CC) $(CFLAGS) -o fsm-test fsm_test.c mosken.c heapfile.c fsm.c
+	./fsm-test
+
+fuzz-fsm: fuzz_fsm.c fsm.h mosken.c mosken.h heapfile.c heapfile.h fsm.c
+	$(CC) $(CFLAGS) -o fuzz-fsm fuzz_fsm.c mosken.c heapfile.c fsm.c
 	./fuzz-fsm
 
 .PHONY: clean
 clean:
-	rm -f mosken test fuzz fuzz-fsm
+	rm -f mosken test fuzz fuzz-fsm fsm-test
