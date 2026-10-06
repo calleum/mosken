@@ -26,6 +26,11 @@
  *     only requires a matching page and a result consistent with the
  *     model's maximum category.
  *
+ *     After every successful search, the next-slot pointer fp_next_slot
+ *     (bytes 4..7) must hold the slot index of the returned leaf, so the
+ *     next search resumes near where this one landed. The checker reads it
+ *     after every hit.
+ *
  *     The caller guarantees `min_cat >= 1`. Unwritten leaf slots contain 0
  *     and must not be returned; 0 means "full" for every valid request.
  *
@@ -47,7 +52,10 @@
  *     leaves: FSM_NODES = 2*NSLOTS - 1 = 4087 nodes, in slots 0..4086.
  *
  * CATEGORY ARITHMETIC
- *   This matches PostgreSQL's fsm_space_avail_to_cat exactly:
+ *   Implement fsm_space_avail_to_cat / fsm_space_needed_to_cat in fsm.c
+ *   (prototypes and doc in fsm.h). The checker below keeps its own exact
+ *   oracle: cat_of() and needed_to_cat() are independent of fsm.c, and
+ *   every conversion your code performs is compared against them.
  *
  *     cat = min(255, free / 16)  // 16 = BLKSZ/256 for BLKSZ 4096
  *     satisfies request `need` iff cat >= ceil(need / 16)
@@ -129,6 +137,77 @@ static uint8_t cat_of(uint16_t free_bytes)
     return (uint8_t)(c > 255 ? 255 : c);
 }
 
+/* Independent oracle: minimum category that can serve `need_bytes`.
+ * Capped at 255 like the avail direction: a need at the top of the range
+ * cannot demand a category the byte cannot hold. */
+static uint8_t needed_to_cat(uint16_t need_bytes)
+{
+    uint32_t c = ((uint32_t)need_bytes + CAT_UNITS - 1) / CAT_UNITS;
+    return (uint8_t)(c > 255 ? 255 : c);
+}
+
+/* Read fp_next_slot (little-endian u32 at bytes 4..7). */
+static uint32_t fsm_next_slot(Page page)
+{
+    const unsigned char *b = (const unsigned char *)page + 4;
+    return (uint32_t)b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 |
+           (uint32_t)b[3] << 24;
+}
+
+/* One-shot check of both conversions at the start of every seed:
+ * exhaustive over the full uint16 range in steps of 1 up to 1024, then
+ * the exact multiples-of-16 boundaries and the 255 cap region. */
+static void check_cat_arith(void)
+{
+    CHECK(fsm_space_avail_to_cat(0) == 0 &&
+              fsm_space_avail_to_cat(16) == 1 &&
+              fsm_space_avail_to_cat(255) == 15 &&
+              fsm_space_avail_to_cat(4088) == 255,
+          "avail_to_cat basic: %u %u %u %u", fsm_space_avail_to_cat(0),
+          fsm_space_avail_to_cat(16), fsm_space_avail_to_cat(255),
+          fsm_space_avail_to_cat(4088));
+    CHECK(fsm_space_needed_to_cat(1) == 1 && fsm_space_needed_to_cat(16) == 1 &&
+              fsm_space_needed_to_cat(17) == 2 &&
+              fsm_space_needed_to_cat(4088) == 255,
+          "needed_to_cat basic: %u %u %u %u", fsm_space_needed_to_cat(1),
+          fsm_space_needed_to_cat(16), fsm_space_needed_to_cat(17),
+          fsm_space_needed_to_cat(4088));
+
+    for(uint32_t v = 0; v <= 1024; v++)
+    {
+        CHECK(fsm_space_avail_to_cat((uint16_t)v) == cat_of((uint16_t)v),
+              "avail_to_cat(%u): got %u want %u", v,
+              fsm_space_avail_to_cat((uint16_t)v), cat_of((uint16_t)v));
+        CHECK(fsm_space_needed_to_cat((uint16_t)v) ==
+                  needed_to_cat((uint16_t)v),
+              "needed_to_cat(%u): got %u want %u", v,
+              fsm_space_needed_to_cat((uint16_t)v),
+              needed_to_cat((uint16_t)v));
+    }
+    /* The exact boundary family: multiples of CAT_UNITS and one either
+     * side, up to the 255 cap. */
+    for(uint32_t k = 0; k <= 256; k++)
+    {
+        uint16_t lo = (uint16_t)(k == 0 ? 0 : 16 * k - 1);
+        uint16_t mid = (uint16_t)(16 * k > 65535 ? 65535 : 16 * k);
+        uint16_t hi = (uint16_t)(16 * k + 1 > 65535 ? 65535 : 16 * k + 1);
+        CHECK(fsm_space_avail_to_cat(lo) == cat_of(lo) &&
+                  fsm_space_avail_to_cat(mid) == cat_of(mid) &&
+                  fsm_space_avail_to_cat(hi) == cat_of(hi),
+              "avail boundary k=%u: %u/%u %u/%u %u/%u", k,
+              fsm_space_avail_to_cat(lo), cat_of(lo),
+              fsm_space_avail_to_cat(mid), cat_of(mid),
+              fsm_space_avail_to_cat(hi), cat_of(hi));
+        CHECK(fsm_space_needed_to_cat(lo) == needed_to_cat(lo) &&
+                  fsm_space_needed_to_cat(mid) == needed_to_cat(mid) &&
+                  fsm_space_needed_to_cat(hi) == needed_to_cat(hi),
+              "needed boundary k=%u: %u/%u %u/%u %u/%u", k,
+              fsm_space_needed_to_cat(lo), needed_to_cat(lo),
+              fsm_space_needed_to_cat(mid), needed_to_cat(mid),
+              fsm_space_needed_to_cat(hi), needed_to_cat(hi));
+    }
+}
+
 static uint8_t model_max_cat(const struct model *m)
 {
     uint8_t max = 0;
@@ -189,11 +268,13 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
     g_trace = getenv("FUZZ_TRACE") != NULL;
     memset(&m, 0, sizeof m);
 
+    check_cat_arith();
+
     /* Fresh FSM + heap: one page exists, entirely free. */
     fsm_init(page);
     m.npages = 1;
     m.free[0] = PAGE_DATA;
-    fsm_set_avail(page, 0, cat_of(m.free[0]));
+    fsm_set_avail(page, 0, fsm_space_avail_to_cat(m.free[0]));
     hf_extend(hf);
 
     for(g_op = 0; g_op < ops; g_op++)
@@ -203,7 +284,7 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
         {
             /* INSERT of `need` bytes: search the FSM, extend when none. */
             uint32_t need = 1 + rng_below(200);
-            uint8_t min_cat = (uint8_t)((need + CAT_UNITS - 1) / CAT_UNITS);
+            uint8_t min_cat = fsm_space_needed_to_cat((uint16_t)need);
             uint32_t pg = 0;
             int found = fsm_search_avail(page, min_cat, &pg);
 
@@ -226,8 +307,12 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
                 CHECK(cat_of(m.free[pg]) >= min_cat,
                       "returned page %u cat %u < min_cat %u", pg,
                       cat_of(m.free[pg]), min_cat);
+                CHECK(fsm_next_slot(page) == LEAF_START + pg,
+                      "fp_next_slot %u after hit on page %u (want leaf slot "
+                      "%u)",
+                      fsm_next_slot(page), pg, LEAF_START + pg);
                 m.free[pg] -= (uint16_t)need;
-                fsm_set_avail(page, pg, cat_of(m.free[pg]));
+                fsm_set_avail(page, pg, fsm_space_avail_to_cat(m.free[pg]));
                 trace_op("INSERT %u -> page %u (free now %u)", need, pg,
                          m.free[pg]);
             }
@@ -238,7 +323,8 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
                 m.free[m.npages] = (uint16_t)(PAGE_DATA - need);
                 m.npages++;
                 hf_extend(hf);
-                fsm_set_avail(page, m.npages - 1, cat_of(m.free[m.npages - 1]));
+                fsm_set_avail(page, m.npages - 1,
+                              fsm_space_avail_to_cat(m.free[m.npages - 1]));
                 trace_op("INSERT %u -> EXTEND to %u pages", need, m.npages);
             }
             CHECK(m.npages <= (uint32_t)hf_num_pages(hf),
@@ -260,7 +346,7 @@ static void fuzz_seed(uint64_t seed, uint32_t ops)
                 continue;
             }
             m.free[p] += (uint16_t)r;
-            fsm_set_avail(page, p, cat_of(m.free[p]));
+            fsm_set_avail(page, p, fsm_space_avail_to_cat(m.free[p]));
             trace_op("FREE %u on page %u (free now %u)", r, p, m.free[p]);
         }
         else

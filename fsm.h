@@ -29,4 +29,20 @@ void fsm_set_avail(Page page, uint32_t page_no, uint8_t cat);
 int fsm_search_avail(Page page, uint8_t min_cat, uint32_t *page_no_out);
 uint8_t fsm_root_value(Page page);
 
+/*
+ * Category arithmetic, mirroring PostgreSQL's fsm_space_avail_to_cat and
+ * fsm_space_needed_to_cat. CAT_UNITS = 16 (BLKSZ/256).
+ *
+ *   fsm_space_avail_to_cat(free_bytes)
+ *     Category stored for a page with `free_bytes` contiguous free bytes.
+ *     Rounds DOWN, capped at 255. Storing must never over-promise.
+ *
+ *   fsm_space_needed_to_cat(need_bytes)
+ *     Minimum category a page must advertise to serve an item of
+ *     `need_bytes`. Rounds UP. A category computed with floor here accepts
+ *     a page whose free run is one boundary byte short of the need.
+ */
+uint8_t fsm_space_avail_to_cat(uint16_t free_bytes);
+uint8_t fsm_space_needed_to_cat(uint16_t need_bytes);
+
 #endif /* FSM_H */
