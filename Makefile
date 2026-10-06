@@ -6,13 +6,25 @@ mosken: mosken.c mosken.h heapfile.c heapfile.h
 
 build: mosken
 
-run: build 
+run: build
 	./mosken
-
-.PHONY: clean
-clean: 
-	rm -f mosken test
 
 test: test.c test.h mosken.c mosken.h heapfile.c heapfile.h
 	$(CC) $(CFLAGS) -o test test.c mosken.c heapfile.c
 	./test
+
+fuzz: fuzz_page.c mosken.c mosken.h
+	$(CC) $(CFLAGS) -o fuzz fuzz_page.c mosken.c
+	./fuzz
+
+fsm-test: fsm_test.c fsm.h mosken.c mosken.h heapfile.c heapfile.h fsm.c
+	$(CC) $(CFLAGS) -o fsm-test fsm_test.c mosken.c heapfile.c fsm.c
+	./fsm-test
+
+fuzz-fsm: fuzz_fsm.c fsm.h mosken.c mosken.h heapfile.c heapfile.h fsm.c
+	$(CC) $(CFLAGS) -o fuzz-fsm fuzz_fsm.c mosken.c heapfile.c fsm.c
+	./fuzz-fsm
+
+.PHONY: clean
+clean:
+	rm -f mosken test fuzz fuzz-fsm fsm-test

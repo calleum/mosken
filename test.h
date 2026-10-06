@@ -1,6 +1,8 @@
 #ifndef MOSKEN_TEST_H
 #define MOSKEN_TEST_H
 
+#include <stdio.h>
+
 #define TEST(name)                                                            \
     void test_##name()                                                        \
     {                                                                         \

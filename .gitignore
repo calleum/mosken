@@ -7,3 +7,7 @@ rw
 core*
 compile_commands.json
 test
+fuzz
+fuzz-fsm
+fsm-test
+target/
